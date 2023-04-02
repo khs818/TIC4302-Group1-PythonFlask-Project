@@ -6,16 +6,21 @@ on:
 
 jobs:
   secret-scan:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-Latest
+
     steps:
-      - uses: actions/checkout@v2  
-      
-      - run: |
-          mkdir -p logs/
-          echo 'Environment/App/db' > logs/exclude.txt
-      
-      
-      - uses: max/secret-scan@master
+      - uses: actions/checkout@v2
+      - run: mkdir -p Logs/
+
+      - name: Whispers
+        run: pip install --no-cache-dir whispers
+
+      - name: Repo scan
+        run: whispers . --config config.yml --output Logs/whisperoutput.txt
+
+      - uses: actions/upload-artifact@v2
         with:
-          exclude_path: 'logs/exclude.txt'
+          name: whisper results
+          path: Logs/whisperoutput.txt
+
 
