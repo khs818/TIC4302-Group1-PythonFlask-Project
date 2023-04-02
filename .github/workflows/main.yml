@@ -16,7 +16,7 @@ jobs:
         run: pip install --no-cache-dir whispers
 
       - name: Repo scan
-        run: whispers . --config config.ynl --output Logs/whisperoutput.txt
+        run: whispers . --config config.yml --output Logs/whisperoutput.txt
 
       - uses: actions/upload-artifact@v2
         with:
