@@ -1,1 +1,25 @@
+name: ci
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  secret-scan:
+    runs-on: ubuntu-Latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - run: mkdir -p Logs/
+
+      - name: Whispers
+        run: pip install --no-cache-dir whispers
+
+      - name: Repo scan
+        run: whispers . --config config.ynl --output Logs/whisperoutput.txt
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: whisper results
+          path: Logs/whisperoutput.txt
 
