@@ -24,6 +24,7 @@ def close_db(e=None):
     """If this request connected to the database, close the
     connection.
     """
+    print(e)
     db = g.pop("db", None)
 
     if db is not None:
