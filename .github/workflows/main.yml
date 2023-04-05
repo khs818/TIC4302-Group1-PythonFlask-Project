@@ -1,26 +1,208 @@
-name: ci
+name: Flaskr Pipeline
 
 on:
   push:
-    branches: [master]
+    branches:
+      - master
 
 jobs:
+  format-pylint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install pylint
+      run: |
+        pip install -e .
+        pip install pylint
+
+    - name: Run pylint
+      run: |
+        pylint --rcfile=pylint.conf flaskr > pylint.txt
+
+    - name: Upload pylint results
+      uses: actions/upload-artifact@v3
+      with:
+          name: pylint-results
+          path: pylint.txt
+
   secret-scan:
-    runs-on: ubuntu-Latest
+    runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
-      - run: mkdir -p Logs/
+      - uses: actions/checkout@v3
 
-      - name: Whispers
-        run: pip install --no-cache-dir whispers
+      - name: Scan for secrets with bandit
+        run: |
+          pip install bandit
+          bandit -r ./flaskr -f json -o bandit.json
 
-      - name: Repo scan
-        run: whispers . --config config.yml --output Logs/whisperoutput.txt
-
-      - uses: actions/upload-artifact@v2
+      - name: Upload bandit results
+        uses: actions/upload-artifact@v3
         with:
-          name: whisper results
-          path: Logs/whisperoutput.txt
+            name: bandit-results
+            path: bandit.json
+
+  dockerfile-linter:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Lint Dockerfile
+        uses: hadolint/hadolint-action@v2.0.0
+        with:
+          dockerfile: ./Dockerfile
+          no-fail: true
+
+      - name: Lint Dockerfile test
+        uses: hadolint/hadolint-action@v2.0.0
+        with:
+          dockerfile: ./Dockerfile.test
+          no-fail: true
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [format-pylint, secret-scan, dockerfile-linter]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Build Docker image
+        run: |
+          docker build -t flaskr -f Dockerfile .   
+
+  sca:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - run: |
+          mkdir -p logs/
+      - name: Install Safety
+        run: |
+          pip install safety
+
+      - name: Safety
+        run: |
+          safety check -r requirements.txt > result.txt
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: safety-logs
+          path: result.txt
+
+
+      - name: Pyraider
+        run: |
+          pip install pyraider
+          pyraider check -f requirements.txt > result.json
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: pyraider-logs
+          path: result.json   
+
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Build Docker image for testing
+      run: |
+        docker build -t flaskr-test -f Dockerfile.test .
+
+    - name: Install dependencies
+      run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pytest
+
+    - name: Run tests and save results
+      run: |
+        pytest --junitxml=test-results.xml
+
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      with:
+          name: test-results
+          path: test-results.xml
+
+
+  container-scan:
+    needs: [test, sca]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Run Dockle
+        uses: erzz/dockle-action@v1.1.1
+        with:
+          image: ${{ secrets.DOCKER_USERNAME }}/tic4302-demo:latest
+          report-format: json
+          report-name: dockle-report
+
+      - name: Upload Report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: Dockle Report
+          path: dockle-report.json
+
+
+  docker-bnp:
+      runs-on: ubuntu-latest
+      needs: [container-scan]
+
+      steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push
+        id: docker_build
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/tic4302-demo:latest
+
+  zap:
+    needs: [ docker-bnp ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Build Image for testing
+        run: |
+          docker build -t flaskr -f Dockerfile . 
+
+      - name: Run Image
+        run: |
+          docker run -d -p 5000:5000 flaskr
+
+      - name: Run ZAP Scan
+        run: |
+            docker run --net=host -t owasp/zap2docker-stable zap-baseline.py -t http://localhost:5000 > zap.log || true
+
+      - name: Upload Report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: ZAP Report
+          path: zap.log
 
 
