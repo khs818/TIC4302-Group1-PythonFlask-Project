@@ -140,7 +140,7 @@ jobs:
       - name: Run Dockle
         uses: erzz/dockle-action@v1.1.1
         with:
-          image: ${{ secrets.DOCKERHUB_USERNAME }}/tic4302-demo:latest
+          image: ${{ secrets.DOCKER_USERNAME }}/tic4302-demo:latest
           report-format: json
           report-name: dockle-report
 
