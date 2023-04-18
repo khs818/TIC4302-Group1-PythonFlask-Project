@@ -25,8 +25,7 @@ jobs:
       with:
           name: pylint-results
           path: pylint.txt
-
-  secret-scan:
+  sast:
     runs-on: ubuntu-latest
 
     steps:
@@ -36,12 +35,23 @@ jobs:
         run: |
           pip install bandit
           bandit -r ./flaskr -f json -o bandit.json
-
       - name: Upload bandit results
         uses: actions/upload-artifact@v3
         with:
             name: bandit-results
             path: bandit.json
+            
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: |
+          mkdir -p logs/
+          echo 'flaskr/db.py' > logs/exclude.txt
+          echo 'tests' > logs/exclude.txt
+      - uses: max/secret-scan@master
+        with:
+          exclude_path: logs/exclude.txt
 
   dockerfile-linter:
     runs-on: ubuntu-latest
