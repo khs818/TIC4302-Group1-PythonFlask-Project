@@ -142,7 +142,7 @@ jobs:
           path: test-results.xml
 
   zap:
-    needs: [ build ]
+    needs: [ build,sca,test]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
