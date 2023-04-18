@@ -142,7 +142,7 @@ jobs:
           path: test-results.xml
 
   zap:
-    needs: [ docker-bnp ]
+    needs: [ build ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
