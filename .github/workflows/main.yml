@@ -41,18 +41,6 @@ jobs:
             name: bandit-results
             path: bandit.json
             
-  secret-scan:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - run: |
-          mkdir -p logs/
-          echo 'flaskr/db.py' > logs/exclude.txt
-          echo 'tests' > logs/exclude.txt
-      - uses: max/secret-scan@master
-        with:
-          exclude_path: logs/exclude.txt
-
   dockerfile-linter:
     runs-on: ubuntu-latest
 
@@ -69,7 +57,19 @@ jobs:
         uses: hadolint/hadolint-action@v2.0.0
         with:
           dockerfile: ./Dockerfile.test
-          no-fail: true
+          no-fail: true            
+          
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: |
+          mkdir -p logs/
+          echo 'flaskr/db.py' > logs/exclude.txt
+          echo 'tests' > logs/exclude.txt
+      - uses: max/secret-scan@master
+        with:
+          exclude_path: logs/exclude.txt
 
   build:
     runs-on: ubuntu-latest
@@ -142,7 +142,7 @@ jobs:
           path: test-results.xml
 
   zap:
-    needs: [ build,sca,test]
+    needs: [ build]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
