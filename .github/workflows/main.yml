@@ -141,7 +141,32 @@ jobs:
           name: test-results
           path: test-results.xml
 
+  zap:
+    needs: [ docker-bnp ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
 
+      - name: Build Image for testing
+        run: |
+          docker build -t flaskr -f Dockerfile . 
+
+      - name: Run Image
+        run: |
+          docker run -d -p 5000:5000 flaskr
+
+      - name: Run ZAP Scan
+        run: |
+            docker run --net=host -t owasp/zap2docker-stable zap-baseline.py -t http://localhost:5000 > zap.log || true
+
+      - name: Upload Report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: ZAP Report
+          path: zap.log
+          
   container-scan:
     needs: [test, sca]
     runs-on: ubuntu-latest
@@ -189,30 +214,6 @@ jobs:
           push: true
           tags: khs818/tic4302-demo:latest
 
-  zap:
-    needs: [ docker-bnp ]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
 
-      - name: Build Image for testing
-        run: |
-          docker build -t flaskr -f Dockerfile . 
-
-      - name: Run Image
-        run: |
-          docker run -d -p 5000:5000 flaskr
-
-      - name: Run ZAP Scan
-        run: |
-            docker run --net=host -t owasp/zap2docker-stable zap-baseline.py -t http://localhost:5000 > zap.log || true
-
-      - name: Upload Report
-        uses: actions/upload-artifact@v3
-        if: always()
-        with:
-          name: ZAP Report
-          path: zap.log
 
 
