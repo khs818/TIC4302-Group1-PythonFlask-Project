@@ -6,6 +6,7 @@ on:
       - master
 
 jobs:
+
   format-pylint:
     runs-on: ubuntu-latest
     steps:
@@ -25,9 +26,9 @@ jobs:
       with:
           name: pylint-results
           path: pylint.txt
+
   sast:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v3
 
@@ -43,7 +44,6 @@ jobs:
             
   dockerfile-linter:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v3
 
@@ -73,7 +73,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
-    needs: [format-pylint, secret-scan, dockerfile-linter]
+    needs: [format-pylint, secret-scan, dockerfile-linter, sast]
 
     steps:
       - uses: actions/checkout@v3
@@ -85,7 +85,6 @@ jobs:
   sca:
     runs-on: ubuntu-latest
     needs: build
-
     steps:
       - uses: actions/checkout@v3
 
@@ -103,7 +102,6 @@ jobs:
         with:
           name: safety-logs
           path: result.txt
-
 
       - name: Pyraider
         run: |
@@ -142,8 +140,8 @@ jobs:
           path: test-results.xml
 
   zap:
-    needs: [ build]
     runs-on: ubuntu-latest
+    needs: build
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -167,8 +165,8 @@ jobs:
           name: ZAP Report
           path: zap.log
           
-  container-scan:
-    needs: [test, sca]
+  Container-Scan:
+    needs: [test, sca, zap]
     runs-on: ubuntu-latest
 
     steps:
@@ -186,10 +184,9 @@ jobs:
           name: Dockle Report
           path: dockle-report.json
 
-
-  docker-bnp:
+  Docker-Build-Push:
       runs-on: ubuntu-latest
-      needs: [container-scan]
+      needs: Container-Scan
 
       steps:
       - uses: actions/checkout@v3
